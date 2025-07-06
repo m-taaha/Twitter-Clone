@@ -4,33 +4,39 @@ import { generatingTokenandSetCookies } from "../lib/utils/gerateTokens.js";
 
 const signUp = async (req, res) => {
   try {
+    // SIGNUP
     const { fullName, email, username, password } = req.body;
+
+    // Email format check
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ error: "Invalid email format" });
     }
 
-    //exitinguish user
+    // Check if username exists
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return res.status(400).json({ error: "Username is already taken" });
     }
 
-    // extingemail
+    // Check if email exists
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
       return res.status(400).json({ error: "Email is already taken" });
     }
 
+    // Password strength check
     if (!password || password.length < 6) {
       return res
         .status(400)
         .json({ error: "password should be at least 6 characters" });
     }
-    //hashing password
+
+    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // Create user
     const newUser = new User({
       username,
       fullName,
@@ -45,7 +51,7 @@ const signUp = async (req, res) => {
       generatingTokenandSetCookies(newUser._id, res);
       await newUser.save();
 
-      res.status(201).json({
+      return res.status(201).json({
         id: newUser._id,
         username: newUser.username,
         email: newUser.email,
@@ -55,15 +61,17 @@ const signUp = async (req, res) => {
         profileImage: newUser.profileImage,
       });
     } else {
-      res.status(400).json({ error: "Invalid user data" });
+      return res.status(400).json({ error: "Invalid user data" });
     }
   } catch (error) {
     console.error("SingUp error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       error: "An error occurred during sign up",
     });
   }
 };
+
+// LOGIN
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -83,7 +91,7 @@ const login = async (req, res) => {
 
     generatingTokenandSetCookies(user._id, res);
 
-    res.status(200).json({
+    return res.status(200).json({
       id: user._id,
       username: user.username,
       email: user.email,
@@ -94,21 +102,36 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       error: "An error occurred during login",
     });
   }
 };
+
+// LOGOUT
 const logout = async (req, res) => {
   try {
-    res.cookie("jwt", "", { myAge: 0 });
-    res.status(200).json({ message: "Logout Successfully" });
+    res.cookie("jwt", "", { maxAge: 0 });
+    return res.status(200).json({ message: "Logout Successfully" });
   } catch (error) {
     console.error("Logout error:", error);
-    res.status(500).json({
+    return res.status(500).json({
       error: "An error occurred during logout",
     });
   }
 };
 
-export { signUp, login, logout };
+// GET ME
+const getme = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error("Getme error:", error);
+    return res.status(500).json({
+      error: "An error occurred during getme",
+    });
+  }
+};
+
+export { signUp, login, logout, getme };
